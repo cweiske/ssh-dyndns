@@ -1,0 +1,74 @@
+#!/bin/sh
+#dyndns via ssh login + djbdns/dbndns
+#
+#usage:
+# $ ssh dyndns@example.org home.example.org
+#
+#user setup:
+# $ useradd -g nogroup -m -N -s /usr/local/bin/ssh-dyndns dyndns
+# .. add ssh key to user
+#do not show login messages:
+# $ su - dyndns -s /bin/bash
+# $ touch ~/.hushlogin
+# alternatively, comment out the motd lines in /etc/pam.d/sshd
+#
+
+if [ -z "$SSH_CONNECTION" ]; then
+   echo "no ssh connection"
+   exit 1
+fi
+
+remoteip=${SSH_CLIENT%% *}
+if [ -z "$remoteip" ]; then
+   echo "ssh client IP not found"
+   exit 2
+fi
+
+if [ -z "$2" ]; then
+    echo Missing argument: domain name
+    exit 3
+fi
+domain="$2"
+
+#load config files
+if [ -x ~/.config/ssh-dyndns.sh ]; then
+    . ~/.config/ssh-dyndns.sh
+fi
+if [ -x /etc/ssh-dyndns.sh ]; then
+    . /etc/ssh-dyndns.sh
+fi
+
+if [ -z "$data_dir" ]; then
+    echo '$data_dir not set'
+    exit 4
+fi
+if [ ! -d "$data_dir" ]; then
+    echo "$data_dir does not exist"
+    exit 5
+fi
+if [ ! -f "$data_dir/Makefile" ]; then
+    echo "$data_dir misses Makefile"
+    exit 6
+fi
+
+#FIXME: check allowed domains, allowed suffixes
+
+file_pattern="${file_pattern:-data-dyndns-%DOMAIN%}"
+timeout=${timeout:-300}
+
+datafile=${data_dir}`echo $file_pattern | sed "s/%DOMAIN%/$domain/"`
+#echo $datafile
+
+if [ `echo "$remoteip"| sed "s/://"` != "$remoteip" ]; then
+    echo "IPv6 not supported yet"
+    # we need ipv6 address expansion
+    exit 7
+fi
+
+#=cweiske.de:5.35.241.22
+djbdnsline="=${domain}:${remoteip}:${timeout}"
+echo $djbdnsline > $datafile
+
+#compile dns data
+cd "$data_dir"
+make
