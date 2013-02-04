@@ -1,0 +1,9 @@
+#!/bin/sh
+#ssh-dyndns configuration file.
+#possible locations:
+# /etc/ssh-dyndns.sh
+# ~/.config/ssh-dyndns.sh
+
+data_dir=/tmp/
+file_pattern=data-dyndns-%DOMAIN%
+timeout=300
