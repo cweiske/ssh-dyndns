@@ -44,22 +44,34 @@ if [ ! -f "$data_dir/Makefile" ]; then
     exit 6
 fi
 
-#FIXME: check allowed domains, allowed suffixes
+if [ ! -z "$domain_patterns" ]; then
+    ok=0
+    for single_dp in $domain_patterns; do
+        case "$domain" in
+            ($single_dp) ok=1;;
+        esac
+    done
+    if [ $ok -ne 1 ]; then
+        echo "Domain \"$domain\" does not match \$domain_pattern"
+        exit 7
+    fi
+fi
+
 
 file_pattern="${file_pattern:-data-dyndns-%DOMAIN%}"
 timeout=${timeout:-300}
 
 datafile=${data_dir}`echo $file_pattern | sed "s/%DOMAIN%/$domain/"`
-#echo $datafile
 
 if [ `echo "$remoteip"| sed "s/://"` != "$remoteip" ]; then
     echo "IPv6 not supported yet"
     # we need ipv6 address expansion
-    exit 7
+    exit 8
 fi
 
 #=cweiske.de:5.35.241.22
 djbdnsline="=${domain}:${remoteip}:${timeout}"
+#FIXME: do not update if nothing changed
 echo $djbdnsline > $datafile
 
 #compile dns data

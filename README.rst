@@ -64,6 +64,14 @@ The configuration file may define the following variables:
     DNS entry TTL (time to live) in seconds
 
     Default: 300
+``domain_patterns``
+    Defines patterns for domains that may be dynamically changed.
+    If the domain name does not match the pattern, the script aborts.
+
+    You may use several patterns by separating them with a space.
+    Shell wildcards are supported (``*`` and ``?``).
+
+    Default: ``home.example.org *.home.example.org``
 
 
 =====

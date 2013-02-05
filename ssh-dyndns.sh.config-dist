@@ -7,3 +7,4 @@
 data_dir=/tmp/
 file_pattern=data-dyndns-%DOMAIN%
 timeout=300
+domain_patterns="home.example.org *.home.example.org"
