@@ -17,6 +17,7 @@ if [ -z "$remoteip" ]; then
    exit 2
 fi
 
+#TODO: support multiple domains
 if [ -z "$2" ]; then
     echo Missing argument: domain name
     exit 3
@@ -71,7 +72,19 @@ fi
 
 #=cweiske.de:5.35.241.22
 djbdnsline="=${domain}:${remoteip}:${timeout}"
-#FIXME: do not update if nothing changed
+
+update=1
+if [ -f "$datafile" ]; then
+    currentdata=`cat "$datafile"`
+    if [ "$currentdata" = "$djbdnsline" ]; then
+        #no need to update
+        update=0
+    fi
+fi
+if [ $update -eq 0 ]; then
+    exit
+fi
+
 echo $djbdnsline > $datafile
 
 #compile dns data
