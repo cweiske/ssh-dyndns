@@ -1,17 +1,10 @@
 #!/bin/sh
-#dyndns via ssh login + djbdns/dbndns
+# dyndns via ssh login + tinydns (djbdns/dbndns)
 #
-#usage:
+# usage:
 # $ ssh dyndns@example.org home.example.org
 #
-#user setup:
-# $ useradd -g nogroup -m -N -s /usr/local/bin/ssh-dyndns dyndns
-# .. add ssh key to user
-#do not show login messages:
-# $ su - dyndns -s /bin/bash
-# $ touch ~/.hushlogin
-# alternatively, comment out the motd lines in /etc/pam.d/sshd
-#
+# @author Christian Weiske <cweiske@cweiske.de>
 
 if [ -z "$SSH_CONNECTION" ]; then
    echo "no ssh connection"
@@ -31,10 +24,10 @@ fi
 domain="$2"
 
 #load config files
-if [ -x ~/.config/ssh-dyndns.sh ]; then
+if [ -f ~/.config/ssh-dyndns.sh ]; then
     . ~/.config/ssh-dyndns.sh
 fi
-if [ -x /etc/ssh-dyndns.sh ]; then
+if [ -f /etc/ssh-dyndns.sh ]; then
     . /etc/ssh-dyndns.sh
 fi
 

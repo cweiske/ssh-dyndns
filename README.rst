@@ -37,6 +37,7 @@ Setup
     $ su - dyndns -s /bin/bash
     $ touch ~/.hushlogin
 
+   Alternatively, you may commend out the "motd" lines in ``/etc/pam.d/sshd``
 5. Configure ssh-dyndns as root::
 
     $ cp /usr/local/src/ssh-dyndns/ssh-dyndns.sh.config-dist /etc/ssh-dyndns.sh
