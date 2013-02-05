@@ -7,20 +7,20 @@
 # @author Christian Weiske <cweiske@cweiske.de>
 
 if [ -z "$SSH_CONNECTION" ]; then
-   echo "no ssh connection"
+   echo "no ssh connection" >&2
    exit 1
 fi
 
 remoteip=${SSH_CLIENT%% *}
 if [ -z "$remoteip" ]; then
-   echo "ssh client IP not found"
+   echo "ssh client IP not found" >&2
    exit 2
 fi
 
 #TODO: allow removal of domains
 #TODO: support multiple domains
 if [ -z "$2" ]; then
-    echo Missing argument: domain name
+    echo Missing argument: domain name >&2
     exit 3
 fi
 domain="$2"
@@ -34,15 +34,15 @@ if [ -f /etc/ssh-dyndns.sh ]; then
 fi
 
 if [ -z "$data_dir" ]; then
-    echo '$data_dir not set'
+    echo '$data_dir not set' >&2
     exit 4
 fi
 if [ ! -d "$data_dir" ]; then
-    echo "$data_dir does not exist"
+    echo "$data_dir does not exist" >&2
     exit 5
 fi
 if [ ! -f "$data_dir/Makefile" ]; then
-    echo "$data_dir misses Makefile"
+    echo "$data_dir misses Makefile" >&2
     exit 6
 fi
 
@@ -54,7 +54,7 @@ if [ ! -z "$domain_patterns" ]; then
         esac
     done
     if [ $ok -ne 1 ]; then
-        echo "Domain \"$domain\" does not match \$domain_pattern"
+        echo "Domain \"$domain\" does not match \$domain_pattern" >&2
         exit 7
     fi
 fi
@@ -66,7 +66,7 @@ timeout=${timeout:-300}
 datafile=${data_dir}`echo $file_pattern | sed "s/%DOMAIN%/$domain/"`
 
 if [ `echo "$remoteip"| sed "s/://"` != "$remoteip" ]; then
-    echo "IPv6 not supported yet"
+    echo "IPv6 not supported yet" >&2
     # we need ipv6 address expansion
     exit 8
 fi
