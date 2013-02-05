@@ -17,6 +17,7 @@ if [ -z "$remoteip" ]; then
    exit 2
 fi
 
+#TODO: allow removal of domains
 #TODO: support multiple domains
 if [ -z "$2" ]; then
     echo Missing argument: domain name
