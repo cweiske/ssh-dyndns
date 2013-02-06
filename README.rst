@@ -18,6 +18,8 @@ tinydns is part of the dbjdns/dbndns package.
 Setup
 =====
 
+Server
+======
 1. Clone ssh-dyndns into a sensible location, e.g. ``/usr/local/src/ssh-dyndns``::
 
     $ cd /usr/local/src/ && git clone git://git.cweiske.de/ssh-dyndns.git
@@ -26,11 +28,10 @@ Setup
 
     $ useradd -g nogroup -m -N -s /usr/local/src/ssh-dyndns/ssh-dyndns dyndns
 
-3. Setup password-less ssh keys for the dyndns user::
+3. Prepare password-less ssh keys for the dyndns user::
 
     $ su - dyndns -s /bin/bash
     $ mkdir ~/.ssh
-    $ cat /path/to/key.pub >> ~/.ssh/authorized_keys
 
 4. Prevent showing login messages::
 
@@ -47,6 +48,29 @@ Setup
 
     $ visudo
     dyndns  ALL= NOPASSWD: /usr/bin/make
+
+
+Client
+======
+On a machine at home, or which other IP you want to dyndns, setup a new ssh key
+as one of your users::
+
+    $ mkdir ~ssh-dyndns
+    $ cd ~/ssh-dyndns
+    $ ssh-keygen -N "" -C "dyndns@home.example.org" -f ~/ssh-dyndns/ssh-dyndns_rsa
+
+Copy the contents of the public key (``ssh-dyndns_rsa.pub``) into
+``/home/dyndns/.ssh/authorized_keys`` on your server.
+
+Run the next command manually to confirm the new ssh key::
+
+    $ cd ~/ssh-dyndns/ && ssh -i ssh-dyndns_rsa dyndns@example.org home.example.org
+
+If that worked, and you DNS entry worked, add the command to cron::
+
+    $ crontab -e
+    # update dns entry home.example.org every 5 minutes
+    */5 * * * *  cd /home/$user/ssh-dyndns/ && ssh -i ssh-dyndns_rsa dyndns@example.org home.example.org
 
 
 Configuration
