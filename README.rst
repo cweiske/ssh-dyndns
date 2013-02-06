@@ -24,7 +24,7 @@ Setup
 
 2. Create a user with ``ssh-dyndns`` as login shell::
 
-    $ useradd -g nogroup -m -N -s /usr/local/src/ssh-dyndns dyndns
+    $ useradd -g nogroup -m -N -s /usr/local/src/ssh-dyndns/ssh-dyndns dyndns
 
 3. Setup password-less ssh keys for the dyndns user::
 
@@ -43,9 +43,10 @@ Setup
     $ cp /usr/local/src/ssh-dyndns/ssh-dyndns.sh.config-dist /etc/ssh-dyndns.sh
     $ nano /etc/ssh-dyndns.sh
 
-6. Allow ssh-dyndns to run "sudo make" without password
+6. Allow ssh-dyndns to run "sudo make" without password::
 
-   FIXME
+    $ visudo
+    dyndns  ALL= NOPASSWD: /usr/bin/make
 
 
 Configuration
