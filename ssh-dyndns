@@ -90,4 +90,4 @@ echo $djbdnsline > $datafile
 
 #compile dns data
 cd "$data_dir"
-make
+sudo make

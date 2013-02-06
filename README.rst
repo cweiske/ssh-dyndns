@@ -43,6 +43,10 @@ Setup
     $ cp /usr/local/src/ssh-dyndns/ssh-dyndns.sh.config-dist /etc/ssh-dyndns.sh
     $ nano /etc/ssh-dyndns.sh
 
+6. Allow ssh-dyndns to run "sudo make" without password
+
+   FIXME
+
 
 Configuration
 =============
