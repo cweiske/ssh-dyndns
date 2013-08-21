@@ -117,6 +117,15 @@ compile the ``data.cdb`` file.
 tinydns will automatically pick up the change.
 
 
+Check time of last update
+=========================
+::
+
+    $ dig +short home.example.org ANY
+    "Last update 2013-08-21 21.21.28+02.00."
+    123.45.67.89
+
+
 Test
 ====
 You can test it locally:
