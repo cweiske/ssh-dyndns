@@ -76,7 +76,7 @@ djbdnsline="=${domain}:${remoteip}:${timeout}"
 
 update=1
 if [ -f "$datafile" ]; then
-    currentdata=`cat "$datafile"`
+    currentdata=`head -n1 "$datafile"|tr -d '\n'`
     if [ "$currentdata" = "$djbdnsline" ]; then
         #no need to update
         update=0
@@ -87,6 +87,11 @@ if [ $update -eq 0 ]; then
 fi
 
 echo $djbdnsline > $datafile
+
+#TXT record with last update
+date=`date --rfc-3339=seconds|tr : .|tr -d '\n'`
+djbdnsTxtLine="'${domain}:Last update ${date}.:${timeout}"
+echo $djbdnsTxtLine >> $datafile
 
 #compile dns data
 cd "$data_dir"

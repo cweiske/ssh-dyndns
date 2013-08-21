@@ -10,6 +10,7 @@ SSH provides secure, password-less key-based authentication.
 
 Upon login, the remote IP is used to create/update a tinydns file with the
 DNS record for a hostname given by the SSH client.
+In addition to the IP record, a TXT record with the update time will be added.
 
 tinydns is part of the dbjdns/dbndns package.
 
@@ -115,6 +116,26 @@ the tinydns zone file and run ``make`` in the ``data_dir`` directory to
 compile the ``data.cdb`` file.
 tinydns will automatically pick up the change.
 
+
+Test
+====
+You can test it locally:
+
+1. Create config file::
+
+     $ cp ssh-dyndns.sh.config-dist ~/.config/ssh-dyndns.sh
+
+2. Create dummy makefile::
+
+     $ touch /tmp/Makefile
+
+3. Run it::
+
+     $ SSH_CLIENT=192.168.1.4 SSH_CONNECTION=1 ./ssh-dyndns foo home.example.org
+
+4. See generated file::
+
+     $ cat /tmp/data-dyndns-home.example.org
 
 ====
 Bugs
