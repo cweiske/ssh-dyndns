@@ -95,4 +95,4 @@ echo $djbdnsTxtLine >> $datafile
 
 #compile dns data
 cd "$data_dir"
-sudo make
+sudo make --silent
