@@ -1,6 +1,6 @@
-**********
-ssh-dyndns
-**********
+****************************
+ssh-dyndns for djbdns/dbndns
+****************************
 Update DNS records by simply SSH'ing into a server.
 
 The idea is to create a separate "dyndns" user on the DNS server.
@@ -27,7 +27,7 @@ Server
 
 2. Create a user with ``ssh-dyndns`` as login shell::
 
-    $ useradd -g nogroup -m -N -s /usr/local/src/ssh-dyndns/ssh-dyndns dyndns
+    $ useradd -g nogroup -m -N -s /usr/local/src/ssh-dyndns/djbdns/ssh-dyndns dyndns
 
 3. Prepare password-less ssh keys for the dyndns user::
 
@@ -42,7 +42,7 @@ Server
    Alternatively, you may commend out the "motd" lines in ``/etc/pam.d/sshd``
 5. Configure ssh-dyndns as root::
 
-    $ cp /usr/local/src/ssh-dyndns/ssh-dyndns.sh.config-dist /etc/ssh-dyndns.sh
+    $ cp /usr/local/src/ssh-dyndns/djbdns/ssh-dyndns.sh.config-dist /etc/ssh-dyndns.sh
     $ nano /etc/ssh-dyndns.sh
 
 6. Allow ssh-dyndns to run "sudo make" without password::
