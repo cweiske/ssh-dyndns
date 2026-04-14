@@ -1,0 +1,553 @@
+#!/usr/bin/perl -i
+( my $IDENT = '@(#)zsu: update DNS zone serial number' ) =~ s/^[^:]*: *//;
+
+=head1 NAME
+
+B<zsu> - update serial numbers in DNS zone files
+
+=head1 SYNOPSIS
+
+B<zsu> [B<-cdfhLnv>] I<zone> ...
+
+=head1 README
+
+B<zsu> updates serial numbers in DNS zone files.
+
+=head1 DESCRIPTION
+
+After any changes are made to a DNS zone file, the serial number must be
+increased -- otherwise changes will not propagate to the slave servers
+(secondaries).  B<zsu> handles the serial number update automatically,
+while preserving everything else in the file.
+
+Forgetting to increase the serial number is one of the most common causes
+of hair loss among DNS administrators!
+
+=head2 Introduction
+
+B<zsu> expects one or more zonefile names as arguments.  The command
+    zsu /etc/db.local 0.0.127.in-add.arpa /var/named/db.example.com
+will update the serial numbers in each of the three zone files listed.
+
+B<zsu> is most commonly used as part of a revision control system for zone
+files, just before changes are committed to a repository.  The following
+simple script demonstrates this.  The script expects a single zonefile
+name as an argument, and relies on ci/co/rcsdiff (all parts of RCS,
+from F<ftp://ftp.cs.purdue.edu/pub/RCS/> ):
+
+    #!/bin/sh
+    co -l $1
+    vi $1
+    rcsdiff -q $1 > /dev/null
+    if [ ! $? ]; then
+	zsu -cf $1
+	ci -u $1
+    fi
+
+B<zsu> will ignore zone files where the originating host in the C<SOA>
+record does not match the local hostname.  Use the B<-f> option to
+override this check.
+
+=head2 Details
+
+B<zsu> works with the standard C<YYYYMMDDN> serial number format, which
+is derived from the current date and a counter to distinguish multiple
+changes made the same day.  B<zsu> tries very hard to increase the serial
+number while keeping its format.  B<zsu> works with 2 or 4 digit years
+and 1 or 2 digit counters, so it will also try to work with formats
+C<YYMMDDN>, C<YYYYMMDDNN> and C<YYMMDDNN>.
+
+Unless the B<-n> option is given, B<zsu> will only process zone
+files with serial numbers in such formats; other zone files will be
+skipped. Unsupported formats include YYYYMMDDmm, where mm is time since
+midnight expressed in 15-minute units, or good old NNNN flat integer
+counters.  I could add support for YYYYMMDDmm if there is demand.  Often
+NNNN format counters are used with some kind of DNS management system,
+and most such systems want to manage the serial numbers themselves, but
+when you know it is safe to do so, the B<-n> option can be specified to
+force B<zsu> to treat all serial numbers as plain integers.
+
+B<zsu> understands standard zonefile syntax and will attempt to change
+the first SOA record found in each of the zones specified.  B<zsu>
+will silently ignore zone files which do not appear to be for the local
+host to prevent changes to zone files on slave servers.  Use the B<-f>
+option to force updates even if the origin in the SOA record fails to
+match the hostname as determined by B<zsu>.
+
+When the serial number indicates a date in the future, B<zsu> will
+continue to use the future date, as long as the counter can still be
+incremented while retaining the date format.  In verbose mode, a warning
+is issued when encountering such a timewarp.  In a future release,
+serial number wraparound (see RFC 1982) may be supported to help fix
+inadvertent timewarps.
+
+Use the B<-c> option to allow B<zsu> to change the format when necessary
+(by default B<zsu> will just complain about these situations).  Changing
+the format is necessary if using two-digit years and the century has
+changed, or if YYMMDDNN format is used and NN is 99, or if a 1 digit
+counter has reached 9.
+
+Specify both B<-c> and B<-n> to convert from plain integer to date
+format serial numbers.  You should only need to use B<-cn> once if you
+are upgrading to date format serial numbers; subsequent invocations
+should not specify either B<-c> or B<-n>.
+
+=head1 OPTIONS
+
+=over 6
+
+=item B<-c>	
+Change serial number format if necessary (otherwise will simply warn
+about overflow and similar errors, and leave the zone file intact).
+In conjunction with the B<-c> option, convert integer serial numbers
+to YYYYMMDDN format.  Do not use B<-c> if other programs rely on the
+serial format!
+
+=item B<-d>	
+Print debugging information.
+
+=item B<-f>	
+Force update, even if this host is not SOA origin.
+
+=item B<-h>	
+Display a brief help message.
+
+=item B<-L>	
+Show the software license.
+
+=item B<-n>	
+Treat the serial number as a plain integer, and increment it.  Take care
+with this option if zone files are generated automatically, for instance
+from a database!
+
+=item B<-v>	
+Verbose mode.  Show the progress of the program.
+
+=back
+
+=head1 RETURN VALUE
+
+Returns 0 on success, -1 if there was a problem with the command line
+arguments, or a positive integer indicating the number of zone files
+which could not be updated.
+
+=head1 PREREQUISITES
+
+You need Perl installed.  See F<http://www.perl.org/> for details.
+Latest versions have been tested with perl 5.005_03 but should also
+work with other 5.x versions (including 5.6.1).  Versions up to 1.18
+were compatible with perl 4, but later versions require perl 5.
+
+=head1 EXAMPLES
+
+The first few lines of a zone file will typically look something like:
+
+    ; some comments
+    @ IN SOA myhost.example.com. hostmaster.example.com. (
+      1998021503 ; the serial number
+      28800 ; refresh
+
+If the system date was 12 August 2001 and you updated the zone with
+B<zsu>, this snippet would end up as:
+
+    ; some comments
+    @ IN SOA myhost.example.com. hostmaster.example.com. (
+      2001081200 ; the serial number
+      28800 ; refresh
+
+Here is a table of what would be done to some other serial numbers,
+if the system date was 12 August 2001:
+
+    original        zsu                     zsu -c
+    -----------     ----------------        ----------------
+    9712231         9712232                 9712232
+    97122301        97122302                97122302
+    199712231       199712232               199712232
+    1997122301      1997122302              1997122302
+    9712239         warn: no change         200108120
+    97122399        warn: no change         2001081200
+    199712239       warn: no change         200108120
+    1997122399      warn: no change         2001081200
+    0108129         warn: no change         01081210
+    01081299        warn: no change         2001081200
+    200108129       warn: no change         2001081210
+    2001081299      warn: no change         warn: no change
+
+    original        zsu -cn                 zsu -n
+    -----------     ----------------        ----------------
+    837             200108120               838
+    203456789       2001081200              203456790
+    1034567890      2001081200              1034567891
+    2147483646      warn: no change         2147483647
+    2147483647      warn: no change         warn: no change
+
+=head1 BUGS
+
+The hostname checking in B<zsu> is known to be buggy; for instance it will
+fail to produce a warning if it needs a domain name, but domainname
+returns just whitespace.
+
+Please report other programming errors to me.
+
+=head1 SEE ALSO
+
+named(8)
+
+=head1 AUTHOR
+
+Copyright 1994-2004 Andras Salamon C<E<lt>andras@dns.netE<gt>>.
+
+=head1 HISTORY
+
+Version 1.20 added more information about the -n option.
+
+Version 1.19 now requires Perl 5, added -n option, changed warnings to
+use NN instead of nn and (YY)YY instead of (yy)yy.
+
+Version 1.18 supports dates in the future.
+
+Version 1.17 moved to POD documentation.
+
+Version 1.16 renamed the F<README.zsu> file to F<README>, and fixed the
+availability information.
+
+Version 1.15 fixed handling of C<SOA> records where the serial is on the
+same line as the C<SOA> tag.  Thanks to Frederic Marchand for picking
+up the problem and suggesting a solution.  Single line C<SOA> records
+now also don't require parentheses, as per RFC 1034.
+
+Version 1.14 added documentation fixes, moved the distribution location,
+and noted where to get B<zsu> in the documentation.
+
+Version 1.13 fixed various problems with 2-digit year and 1-digit counter
+formats.  B<zsu> is now able to change the format when appropriate,
+ie. when the century has changed, or if C<YYMMDDNN> format is used
+and C<NN> is 99, or if a 1 digit counter has reached 9.  This version
+introduced the B<-c> option; previously the serial number format was
+silently changed when necessary.  Use B<-c> for the old behaviour.
+
+=head1 AVAILABILITY
+
+The latest version of B<zsu> is available from
+F<http://www.dns.net/dist/zsu/> and also from
+I<CPAN>, at F<http://www.cpan.org/authors/id/A/AZ/AZS/zsu/> and in
+F<http://www.cpan.org/scripts/Networking/> .
+
+=head1 SCRIPT CATEGORIES
+
+Networking
+VersionControl/CVS
+Unix/System_administration
+
+=cut
+
+
+# internal variables
+#---------------------------------
+
+( my $BCMD = $0 ) =~ s/.*\///;
+( my $REVISION ) = ( '$Revision: 1.20 $' =~ /[^\d\.]*([\d\.]*)/ );
+my $HELPSTRING = "For help, type: $BCMD -h";
+
+my $USAGE = "Usage: $BCMD [-cdfhLv] zone ...";
+my $exitcode = 0;
+
+
+# parse command line arguments
+#-----------------------------
+use Getopt::Std;
+use vars qw( $opt_c $opt_d $opt_f $opt_h $opt_L $opt_n $opt_v );
+use strict;
+
+if (! &getopts('cdfhLnv')) {
+    print STDERR "$USAGE\n$HELPSTRING\n";
+    exit -1;
+}
+if ( $opt_h ) {
+    print <<EOT;
+$BCMD $REVISION: $IDENT
+$USAGE
+Update serial number of DNS zone file using (YY)YYMMDDN(N) format convention.
+ -c			change serial number format if necessary
+ -d			print debugging information
+ -f			force update, even if this host is not SOA origin
+ -L			display software license
+ -n			treat serial number as a plain integer
+ -v			turn on verbose mode
+ zone ...		DNS zone files to update
+Default is to preserve the serial format and issue warnings when trying
+to update (YY)YYMMDD9 or if 99MMDDN(N) was last century.  Use -c to
+allow format changes in these situations instead.  Do not use -c if
+other programs rely on the serial format!  Specify -cn to convert from
+NNNN style serial numbers to YYYYMMDDN.
+
+Zones are skipped if the SOA origin does not match the local hostname;
+use -f to force updates regardless.
+EOT
+	exit 0;
+} elsif ( $opt_L ) {
+    print <<EOT;
+    Copyright 1994-2004 Andras Salamon <andras\@dns.net>
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    If you do not already have a copy of the GNU General Public License,
+    you can obtain a copy by anonymous ftp from prep.ai.mit.edu
+    (file COPYING in directory /pub/gnu) or write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+EOT
+	exit 0;
+}
+my $DEBUG = $opt_d;
+my $VERBOSE = $opt_v || $DEBUG;
+if ( @ARGV < 1 ) {
+    print STDERR "$USAGE\n$HELPSTRING\n";
+    exit -1;
+}
+
+
+# Set up fully qualified host name
+#---------------------------------
+# zone files must have originating host fully qualified, since information
+# from outside zone may be necessary to understand non-FQ domain names
+
+my ( $myhost, $mydom );
+if ( ! $opt_f ) {
+    ( $myhost = `hostname` || `uname -n` ) =~ s/\s*$//;
+    if ( $myhost !~ /\./ ) {
+	if ( ! ( $mydom = `domainname` ) ) {
+	    warn "cannot get FQDN of host" if $VERBOSE;
+	} else {
+	    if ( $mydom !~ /^\./ ) {
+		$mydom = ".$mydom";
+	    }
+	    $myhost .= $mydom;
+	}
+    }
+    if ( $myhost !~ /\.$/ ) {
+	$myhost .= '.';
+    }
+}
+
+
+# warn about converting N to NN format
+#----------------------------------
+sub bump {
+    my $o_count = shift;
+    warn "$ARGV: converting to NN format serial" if $VERBOSE
+	&& $o_count eq '9' && $opt_c;
+    $o_count + 1;
+}
+
+
+# generate a sensible serial number, based on the existing one
+#
+# try to use today's date as returned by ctime(3)
+# update count if serial has today's date already
+# preserve YY format if used
+# needs to detect RFC 1982 2^31 hack!
+#----------------------------------
+
+sub generate_new {
+    my $o_serial = shift;
+
+    my ( $mday, $mon, $year ) = ( localtime( time ) )[3..5];
+    $mon ++; # change 0..11 to 1..12
+    $year += 1900 if $year < 1000; # fix 1900-offset years
+    printf STDERR "local date: %04d/%02d/%02d\n",
+	$year, $mon, $mday if $DEBUG;
+
+    # default is to generate new YYYY format date with 0 counter
+    my $n_y = $year % 100;
+    my $n_c = ( $year - $n_y ) / 100;
+    my $n_date = sprintf "%02d%02d%02d", $n_y, $mon, $mday;
+    my $n_serial = $o_serial;
+
+    # numeric format
+    if ( $opt_n ) {
+	if ( $opt_c ) { # change to YYYYMMDDN format
+	    $n_serial = sprintf "%s%06d0", $n_c, $n_date;
+	    if ( $n_serial <= $o_serial ) { # try ...NN format
+		$n_serial .= '0';
+		if ( $n_serial le $o_serial ) {
+		    warn "$ARGV: cannot convert $o_serial to YYYYMMDDNN format, leaving as is";
+		    $n_serial = $o_serial;
+		    $exitcode ++;
+		}
+	    }
+	} else { # keep numeric format, just increment
+	    if ( $o_serial eq '2147483647' ) { # avoid integer overflow
+		warn "$ARGV: cannot increment $o_serial, leaving as is";
+		$exitcode ++;
+	    } else {
+		$n_serial = $o_serial + 1;
+		my $len = length $o_serial;
+		$len = length $n_serial if $len < length $n_serial;
+		$n_serial = sprintf "%0*d", $len, $n_serial;
+	    }
+	}
+	return $n_serial;
+    }
+
+    $n_serial = $o_serial;
+    # note assumption that years are in range [1900, 2199]
+    my ( $o_c, $o_y, $o_m, $o_d, $o_count ) = ( $o_serial =~
+	/^(19|20|21)?(\d\d)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(\d\d?)$/ );
+
+    unless ( defined $o_y && defined $o_m && defined $o_d
+      && defined $o_count ) {
+	warn "$ARGV: serial $o_serial does not match heuristics, leaving as is";
+	$exitcode ++;
+    } else {
+	my $o_date = $o_y.$o_m.$o_d;
+	$o_c = '' unless defined $o_c;
+
+	my $n_count = 0;
+
+	# two cases: check if counter can be bumped, if necessary
+	if ( ( $o_count =~ /\d\d/ && $o_count < 99 ) ||
+		( $o_count =~ /^\d$/ && ( $o_count < 9 || $opt_c ) ) ) {
+	    print STDERR "can bump serial\n" if $DEBUG;
+	    # try to keep YY format dates, if currently being used
+	    if ( $o_c eq '' ) {
+		print STDERR "currently using YY format dates\n" if $DEBUG;
+		if ( $n_date > $o_date ) {
+		    print STDERR "keeping YY format\n" if $DEBUG;
+		    $n_c = $o_c;
+		} elsif ( $n_date == $o_date ) {
+		    print STDERR "keeping YY format, bumping count\n"
+			if $DEBUG;
+		    ( $n_c, $n_count ) = ( $o_c, bump( $o_count ) );
+		} else {
+		    if ( $opt_c ) {
+			warn "$ARGV: converting to YYYY format serial"
+			    if $VERBOSE;
+		    } else {
+			warn "$ARGV: need -c to convert $o_serial to YYYY format, leaving as is";
+			( $n_c, $n_date, $n_count )  =
+				    ( $o_c, $o_date, $o_count );
+			$exitcode ++;
+		    }
+		}
+	    } else { # already using YYYY format
+		if ( $n_c.$n_date < $o_c.$o_date ) {
+		    # should use 2^31 hack here, see RFC 1982
+		    # for now, keep future date and bump count
+		    warn "$ARGV: serial $o_serial is in future, processing"
+			if $VERBOSE;
+		    print STDERR "$n_c,$n_date vs. $o_c,$o_date\n" if $DEBUG;
+		    ( $n_c, $n_date, $n_count )  =
+			    ( $o_c, $o_date, bump( $o_count ) );
+		} elsif ( $n_c.$n_date == $o_c.$o_date ) {
+		    print STDERR "YYYY format, bumping count\n" if $DEBUG;
+		    $n_count = bump( $o_count );
+		} # else use YYYY format
+	    }
+	} else { # can't bump counter
+	    if ( $n_c.$n_date <= $o_c.$o_date ) {
+		# problem: out of counts and zone date is too new
+		# should use 2^31 hack if new < old, see RFC 1982
+		warn "$ARGV: cannot increment $o_serial, leaving as is";
+		( $n_c, $n_date, $n_count )  =
+			    ( $o_c, $o_date, $o_count );
+		$exitcode ++;
+	    } # else use YYYY format
+	}
+	$n_serial = sprintf "%s%06d%0*d",
+	    $n_c, $n_date, ( ( $o_count =~ /^\d$/ ) ? 1 : 2 ), $n_count;
+    }
+
+    print STDERR "New serial: $n_serial\n" if $DEBUG;
+    $n_serial;
+}
+
+
+# now parse zone file
+#--------------------
+# state table:	0 looking for SOA
+#		1 found SOA, looking for serial
+#		2 found serial, looking for next file
+my $state = 0;
+while ( <> ) {
+    if ( $state == 0 ) {
+	# ... SOA zone_origin  zone_contact ( serial  ...
+	# ^ $1    ^ $2       ^ $3             ^ $4  ^ $5
+	# $4 will be '' if serial is on subsequent line, see state1
+	if ( /^([^;]*\bSOA\b\s+)([^\s;]+)(\s+[^\s;]+\s+\(?\s*)([^\s;]*)(.*)/i ) {
+	    my $ours = 0;
+	    if ( $opt_f || ( $2 eq $myhost ) ) {
+		$ours = 1;
+	    } else {
+		$state = 2;
+	    }
+	    if ( $ours ) {
+		if ( "$4" ne '' ) {
+		    my $before_serial = $1 . $2 . $3;
+		    my $o_serial = $4;
+		    my $after_serial = $5;
+		    if ( $o_serial !~ /^[\d.]+$/ ) {
+			warn "$ARGV: cannot parse serial number, skipping"
+			    if $VERBOSE;
+			$ours = 0;
+			$exitcode ++;
+		    } else {
+			$_ = $before_serial . &generate_new( $o_serial )
+			    . $after_serial . "\n";
+			print STDERR "--> $_ <--\n" if $DEBUG;
+		    }
+		    $state = 2;
+		} else {
+		    $state = 1;
+		}
+	    } else { # not ours, don't change
+		warn "$ARGV: origin non-local, skipping" if $VERBOSE;
+	    }
+	}
+    } elsif ( $state == 1 ) {
+	if ( ! /^\s*;/ ) { # not commented, so serial should be here
+	    if ( /^(\s*)([0-9.]+)(.*)/ ) {
+		$_ = $1 . &generate_new( $2 ) ."$3\n";
+		$state = 2;
+		print STDERR "--> $_ <--\n" if $DEBUG;
+	    } else {
+		warn "$ARGV: cannot parse SOA record, skipping" if $VERBOSE;
+		$exitcode ++;
+	    }
+	} # skip comment lines between `(' and serial
+    } elsif ( $state == 2 ) {
+	$state = 0 if eof;
+    } else {
+	die "internal error: state $state, quitting";
+    }
+} continue {
+    print;
+}
+
+if ( $state == 2 ) {
+    warn "internal error: did not detect end of last file" if $VERBOSE;
+    $exitcode ++;
+} elsif ( $state == 1 ) {
+    warn "$ARGV: could not locate serial number, skipping" if $VERBOSE;
+    $exitcode ++;
+}
+
+exit $exitcode;
+
+# $Log: zsu,v $
+# Revision 1.20  2004/08/08 18:24:24  andras
+# clarified documentation, esp. for -n option
+# trimmed log since revisions already in pod
+#
+# Revision 1.19  2004/08/04 20:43:21  andras
+# added -n option
+# updated warning text
+# strict variables
+# fixed verbose/debug interaction
+#
