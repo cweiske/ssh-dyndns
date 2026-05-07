@@ -4,11 +4,22 @@
 # usage:
 # $ ssh dyndns@example.org home.example.org example.org
 #
-# First parameter is the domain name
-# Second parameter is the nsd zone to reload
+# SSH parameters after user@host:
+# - First parameter is the domain name
+# - Second parameter is the nsd zone to reload
+#
+# CLI params available on server side:
+# 1. "-c"
+# 2. "home.example.org example.org"
+#
+# Local testing:
+# SSH_CONNECTION=a SSH_CLIENT=1.2.3.4 ./ssh-dyndns -c "home.example.org example.org"
 #
 # @author Christian Weiske <cweiske@cweiske.de>
 set -e
+
+#cd into ssh-dyndns dir
+cd "$(dirname "$0")"
 
 if [ -z "$SSH_CONNECTION" ]; then
    echo "no ssh connection" >&2
@@ -21,17 +32,20 @@ if [ -z "$remoteip" ]; then
    exit 2
 fi
 
-if [ -z "$2" ]; then
+# split "$2" by space into multiple variables
+set -- $2
+
+if [ -z "$1" ]; then
     echo Missing argument: domain name >&2
     exit 3
 fi
-domain="$2"
+domain="$1"
 
-if [ -z "$3" ]; then
+if [ -z "$2" ]; then
     echo Missing argument: zone name >&2
     exit 4
 fi
-zone="$3"
+zone="$2"
 
 #load config files
 if [ -f /etc/ssh-dyndns.conf.sh ]; then
