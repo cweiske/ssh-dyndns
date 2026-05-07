@@ -1,0 +1,11 @@
+#!/bin/sh
+# ssh-dyndns configuration file.
+# possible locations:
+# - /etc/ssh-dyndns.conf.sh
+# - ~/.config/ssh-dyndns.conf.sh
+
+domain_file_pattern=/etc/nsd/zones/dyndns/%DOMAIN%-%TYPE%.zonepart
+zone_file_pattern=/etc/nsd/zones/%ZONE%.zone
+timeout=300
+domain_patterns="home.example.org *.home.example.org"
+zone_patterns="example.org *.example.org"

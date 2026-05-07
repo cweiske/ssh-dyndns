@@ -1,0 +1,135 @@
+#!/bin/sh
+# dyndns via ssh login + NSD (NLnet Labs Name Server Daemon)
+#
+# usage:
+# $ ssh dyndns@example.org home.example.org example.org
+#
+# First parameter is the domain name
+# Second parameter is the nsd zone to reload
+#
+# @author Christian Weiske <cweiske@cweiske.de>
+set -e
+
+if [ -z "$SSH_CONNECTION" ]; then
+   echo "no ssh connection" >&2
+   exit 1
+fi
+
+remoteip=${SSH_CLIENT%% *}
+if [ -z "$remoteip" ]; then
+   echo "ssh client IP not found" >&2
+   exit 2
+fi
+
+if [ -z "$2" ]; then
+    echo Missing argument: domain name >&2
+    exit 3
+fi
+domain="$2"
+
+if [ -z "$3" ]; then
+    echo Missing argument: zone name >&2
+    exit 4
+fi
+zone="$3"
+
+#load config files
+if [ -f /etc/ssh-dyndns.conf.sh ]; then
+    . /etc/ssh-dyndns.conf.sh
+fi
+if [ -f ~/.config/ssh-dyndns.conf.sh ]; then
+    . ~/.config/ssh-dyndns.conf.sh
+fi
+
+if [ -z "$domain_file_pattern" ]; then
+    echo '$domain_file_pattern not set' >&2
+    exit 5
+fi
+if [ -z "$zone_file_pattern" ]; then
+    echo '$zone_file_pattern not set' >&2
+    exit 5
+fi
+
+if [ ! -z "$domain_patterns" ]; then
+    ok=0
+    for single_dp in $domain_patterns; do
+        case "$domain" in
+            ($single_dp) ok=1;;
+        esac
+    done
+    if [ $ok -ne 1 ]; then
+        echo "Domain \"$domain\" does not match \$domain_pattern" >&2
+        exit 7
+    fi
+fi
+
+if [ ! -z "$zone_patterns" ]; then
+    ok=0
+    for single_zp in $zone_patterns; do
+        case "$zone" in
+            ($single_zp) ok=1;;
+        esac
+    done
+    if [ $ok -ne 1 ]; then
+        echo "Zone \"$zone\" does not match \$zone_pattern" >&2
+        exit 8
+    fi
+fi
+
+if [ `echo "$remoteip"| sed "s/://"` != "$remoteip" ]; then
+    type=v6
+    dnstype=AAAA
+else
+    type=v4
+    dnstype=A
+fi
+
+
+domain_file_pattern="${domain_file_pattern:-/etc/nsd/zones/dyndns/%DOMAIN%-%TYPE%.zonepart}"
+timeout=${timeout:-300}
+
+domainFile=`echo $domain_file_pattern | sed "s/%DOMAIN%/$domain/" | sed "s/%TYPE%/$type/"`
+domainFileDir=$(dirname "$domainFile")
+if [ ! -d "$domainFileDir" ]; then
+    echo "Domain file directory does not exist: $domainFileDir" >&2
+    exit 9
+fi
+
+zoneFile=`echo $zone_file_pattern | sed "s/%DOMAIN%/$domain/" | sed "s/%ZONE%/$zone/"`
+if [ -z "$zoneFile" ]; then
+    echo "Zone file is empty: $zoneFile" >&2
+    exit 10
+fi
+if [ ! -f "$zoneFile" ]; then
+    echo "Zone file does not exist: $zoneFile" >&2
+    exit 10
+fi
+
+
+#cweiske.de. 300 A 5.35.241.22
+zoneLine="${domain}. ${timeout} ${dnstype} ${remoteip}"
+
+update=1
+if [ -f "$domainFile" ]; then
+    currentdata=`head -n1 "$domainFile"|tr -d '\n'`
+    if [ "$currentdata" = "$zoneLine" ]; then
+        #no need to update
+        update=0
+    fi
+fi
+if [ $update -eq 0 ]; then
+    exit
+fi
+
+echo $zoneLine > $domainFile
+
+#TXT record with last update
+date=`date --rfc-3339=seconds | tr -d '\n'`
+zoneTxtLine="${domain}. TXT \"Last update ${date} ${timeout}\""
+echo $zoneTxtLine >> $domainFile
+
+#update serial number in zone file
+./zsu -fn "$zoneFile"
+
+#reload the zone
+sudo nsd-control reload "$zone"

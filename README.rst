@@ -5,8 +5,8 @@ Update DNS records by simply SSH'ing into a server.
 
 Multiple implementations available:
 
-- djbdns/dbndns: See the ``djbdns/`` directory
-- nsd: See the ``nsd/`` directory
+- djbdns/dbndns ``tinydns``: See the ``djbdns/`` directory
+- NLnet Labs Name Server Daemon NSD: See the ``nsd/`` directory
 
 
 =======
