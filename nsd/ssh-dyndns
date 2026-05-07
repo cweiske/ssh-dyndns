@@ -143,7 +143,7 @@ zoneTxtLine="${domain}. TXT \"Last update ${date} ${timeout}\""
 echo $zoneTxtLine >> $domainFile
 
 #update serial number in zone file
-./zsu -fn "$zoneFile"
+sudo ./zsu -fn "$zoneFile"
 
 #reload the zone
 sudo nsd-control reload "$zone"
