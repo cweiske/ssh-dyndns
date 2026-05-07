@@ -21,13 +21,13 @@ Server
 ======
 1. Clone ssh-dyndns into a sensible location, e.g. ``/usr/local/src/ssh-dyndns``::
 
-    $ cd /usr/local/src/ && git clone git://git.cweiske.de/ssh-dyndns.git
+    $ cd /usr/local/src/ && git clone https://git.cweiske.de/ssh-dyndns.git
 
 2. Create a user with ``ssh-dyndns`` as login shell::
 
     $ useradd -g nogroup -m -N -s /usr/local/src/ssh-dyndns/nsd/ssh-dyndns dyndns
 
-3. Prepare password-less ssh keys for the dyndns user::
+3. Prepare directories for the dyndns user ssh keys::
 
     $ su - dyndns -s /bin/bash
     $ mkdir ~/.ssh
@@ -37,16 +37,31 @@ Server
     $ su - dyndns -s /bin/bash
     $ touch ~/.hushlogin
 
-   Alternatively, you may commend out the "motd" lines in ``/etc/pam.d/sshd``
+   Alternatively, you may comment out the "motd" lines in ``/etc/pam.d/sshd``
+
 5. Configure ssh-dyndns as root::
 
     $ cp /usr/local/src/ssh-dyndns/nsd/ssh-dyndns.conf.sh-dist /etc/ssh-dyndns.conf.sh
     $ nano /etc/ssh-dyndns.conf.sh
 
-6. Allow ssh-dyndns to run "sudo make" without password::
+6. Allow ssh-dyndns to run "sudo nsd-control" and "sudo zsu" without password::
 
     $ visudo
-    dyndns  ALL= NOPASSWD: nsd-control
+    dyndns ALL = NOPASSWD: \
+      /usr/local/src/ssh-dyndns/nsd/zsu -fn /etc/nsd/zones/cweiske.de.zone,\
+      /usr/sbin/nsd-control reload cweiske.de
+
+7. Allow ssh-dyndns to create zone file parts::
+
+     mkdir /etc/nsd/zones/dyndns/
+     chown dyndns /etc/nsd/zones/dyndns/
+
+8. Load the zone file parts from the zone files, e.g.
+   ``/etc/nsd/zones/example.org.zone``::
+
+     ; Dyndns
+     $INCLUDE /etc/nsd/zones/dyndns/home.example.org-v4.zonepart
+     $INCLUDE /etc/nsd/zones/dyndns/home.example.org-v6.zonepart
 
 
 Client
@@ -54,22 +69,25 @@ Client
 On a machine at home, or which other IP you want to dyndns, setup a new ssh key
 as one of your users::
 
-    $ mkdir ~ssh-dyndns
+    $ mkdir ~/ssh-dyndns
     $ cd ~/ssh-dyndns
     $ ssh-keygen -N "" -C "dyndns@home.example.org" -f ~/ssh-dyndns/ssh-dyndns_rsa
 
 Copy the contents of the public key (``ssh-dyndns_rsa.pub``) into
 ``/home/dyndns/.ssh/authorized_keys`` on your server.
 
-Run the next command manually to confirm the new ssh key::
+Run the next command manually to confirm the new ssh key
+(4+6 are for IPv4 and IPv6)::
 
-    $ cd ~/ssh-dyndns/ && ssh -i ssh-dyndns_rsa dyndns@example.org home.example.org example.org
+    $ cd ~/ssh-dyndns/ && ssh -4i ssh-dyndns_rsa dyndns@example.org home.example.org example.org
+    $ cd ~/ssh-dyndns/ && ssh -6i ssh-dyndns_rsa dyndns@example.org home.example.org example.org
 
 If that worked, and you DNS entry worked, add the command to cron::
 
     $ crontab -e
     # update dns entry home.example.org every 5 minutes
-    */5 * * * *  cd /home/$user/ssh-dyndns/ && ssh -i ssh-dyndns_rsa dyndns@example.org home.example.org example.org
+    */5 * * * *  cd /home/$user/ssh-dyndns/ && ssh -4i ssh-dyndns_rsa dyndns@example.org home.example.org example.org
+    */5 * * * *  cd /home/$user/ssh-dyndns/ && ssh -6i ssh-dyndns_rsa dyndns@example.org home.example.org example.org
 
 The first parameter after user+hostname is the DynDNS host name, the second
 is the zone to reload after updating.
