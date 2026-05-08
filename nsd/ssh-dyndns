@@ -139,7 +139,7 @@ echo $zoneLine > $domainFile
 
 #TXT record with last update
 date=`date --rfc-3339=seconds | tr -d '\n'`
-zoneTxtLine="${domain}. TXT \"Last update ${date} ${timeout}\""
+zoneTxtLine="${domain}. TXT \"Last ${type} update ${date} ${timeout}\""
 echo $zoneTxtLine >> $domainFile
 
 #update serial number in zone file
